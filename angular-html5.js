@@ -60,6 +60,7 @@ angular.module('html5').directive('video', function($parse, $log) {
 		$log.warn('video.js not loaded');
 		return {};
 	}
+
 	// @link https://github.com/videojs/video.js/blob/master/docs/api.md#event-types
 	var events = [
 		'loadstart',
@@ -77,15 +78,20 @@ angular.module('html5').directive('video', function($parse, $log) {
 		'error',
 		'fullscreenchange'
 	];
+	var scopeConfig = {
+		src: '@',
+		h5Src: '@',
+		poster: '@',
+		h5Poster: '@',
+		h5Play: '='
+	};
+	angular.forEach(events, function (event) {
+		var name = 'on' + event.charAt(0).toUpperCase() + event.slice(1);
+		scopeConfig[name] = '&';
+	});
 	return {
 		restrict: 'E',
-		scope: {
-			src: '@',
-			h5Src: '@',
-			poster: '@',
-			h5Poster: '@',
-			h5Play: '='
-		},
+		scope: scopeConfig,
 		link: function ($scope, el, attrs) {
 			// Check if the installed flash version is compatible with video.js (requires optional dependancy SWFObject)
 			if (swfobject) {
@@ -99,11 +105,17 @@ angular.module('html5').directive('video', function($parse, $log) {
 			if (!attrs['class']) { // Only apply default skin if no class is defined.
 				el.addClass('vjs-default-skin');
 			}
+			var correctAutoplay = angular.isDefined(attrs.autoplay);
 			el.addClass('video-js');
 			var options = {};
 			if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
 				options.techOrder = ["flash", "html5"]; // use flash fallback in firefox for mp4 playback.
 			}
+			var safeApply = function () {
+				if (!$scope.$root.$$phase) {
+					$scope.$apply();
+				}
+			};
 			$scope.$watch('h5Poster', function (url) {
 				if (!url) {
 					return;
@@ -127,11 +139,12 @@ angular.module('html5').directive('video', function($parse, $log) {
 				});
 				// Bind events to "on-*" attributes
 				angular.forEach(events, function (event) {
-					var property = attrs.$normalize('on-' + event);
-					if (attrs[property]) {
-						var callback = $parse(attrs[property]);
+					var method = attrs.$normalize('on-' + event);
+					if (attrs[method]) {
 						player.on(event, function (e) {
-							callback($scope, {$event: e});
+							$scope.$root.$event = e;
+							$scope.$eval(method + '()');
+							$scope.$root.$event = null;
 						});
 					}
 				});
@@ -139,15 +152,11 @@ angular.module('html5').directive('video', function($parse, $log) {
 				if (attrs.h5Play) {
 					player.on('play', function () {
 						$scope.h5Play = true;
-						if (!$scope.$root.$$phase) {
-							$scope.$apply();
-						}
+						safeApply();
 					});
 					player.on('pause', function () {
 						$scope.h5Play = false;
-						if (!$scope.$root.$$phase) {
-							$scope.$apply();
-						}
+						safeApply();
 					});
 				}
 				// Update the src
@@ -167,14 +176,14 @@ angular.module('html5').directive('video', function($parse, $log) {
 					if (player.paused() == shouldPlay) {
 						if (shouldPlay) {
 							player.play();
+						} else if (correctAutoplay) {
+							correctAutoplay = false; // Prevent a pause-play loop.
 						} else {
 							player.pause();
 						}
 					}
 				});
-
-
-
+				safeApply();
 			});
 
 			// Clean up player
