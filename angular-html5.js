@@ -94,7 +94,7 @@ angular.module('html5').directive('video', function($parse, $log) {
 		scope: scopeConfig,
 		link: function ($scope, el, attrs) {
 			// Check if the installed flash version is compatible with video.js (requires optional dependancy SWFObject)
-			if (swfobject) {
+			if (typeof swfobject !== 'undefined') {
 				var version = swfobject.getFlashPlayerVersion();
 				if (version.major < 11) {
 					el.after('<div class="error-message">Sorry, no compatible source and playback technology were found for this video.<br />Try using another browser like <a href="http://bit.ly/ccMUEC">Chrome</a> or download the latest <a href="http://adobe.ly/mwfN1">Adobe Flash Player</a>.</div>');
