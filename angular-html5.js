@@ -78,20 +78,15 @@ angular.module('html5').directive('video', function($parse, $log) {
 		'error',
 		'fullscreenchange'
 	];
-	var scopeConfig = {
-		src: '@',
-		h5Src: '@',
-		poster: '@',
-		h5Poster: '@',
-		h5Play: '='
-	};
-	angular.forEach(events, function (event) {
-		var name = 'on' + event.charAt(0).toUpperCase() + event.slice(1);
-		scopeConfig[name] = '&';
-	});
 	return {
 		restrict: 'E',
-		scope: scopeConfig,
+		scope: {
+			src: '@',
+			ngSrc: '@', // Override (buggy) ng-src behavior.
+			poster: '@',
+			h5Poster: '@', // Use h5-poster
+			h5Play: '='
+		},
 		link: function ($scope, el, attrs) {
 			// Check if the installed flash version is compatible with video.js (requires optional dependancy SWFObject)
 			if (swfobject) {
@@ -111,6 +106,9 @@ angular.module('html5').directive('video', function($parse, $log) {
 			if (navigator.userAgent.toLowerCase().indexOf('firefox') > -1) {
 				options.techOrder = ["flash", "html5"]; // use flash fallback in firefox for mp4 playback.
 			}
+			/**
+			 * Only call $scope.$apply() when a digest is NOT in progress.
+			 */
 			var safeApply = function () {
 				if (!$scope.$root.$$phase) {
 					$scope.$apply();
@@ -141,10 +139,10 @@ angular.module('html5').directive('video', function($parse, $log) {
 				angular.forEach(events, function (event) {
 					var method = attrs.$normalize('on-' + event);
 					if (attrs[method]) {
+						var fn = $parse(attrs[method]);
 						player.on(event, function (e) {
-							$scope.$root.$event = e;
-							$scope.$eval(method + '()');
-							$scope.$root.$event = null;
+							fn($scope.$parent, {$event: e});
+							safeApply();
 						});
 					}
 				});
@@ -160,7 +158,7 @@ angular.module('html5').directive('video', function($parse, $log) {
 					});
 				}
 				// Update the src
-				angular.forEach(['src', 'h5Src'], function (expression) {
+				angular.forEach(['src', 'ngSrc'], function (expression) {
 					$scope.$watch(expression, function (url) {
 						if (angular.isDefined(url)) {
 							player.src(url);
