@@ -8,18 +8,18 @@
 
 angular.module('html5', []);
 
- /**
-  * Very simple placeholder support.
-  */
-angular.module('html5').directive('placeholder', function ($timeout) {
-  	'use strict';
-  	var input = document.createElement('input');
-  	if ('placeholder' in input) {
+/**
+ * Very simple placeholder support.
+ */
+angular.module('html5').directive('placeholder', function($timeout) {
+	'use strict';
+	var input = document.createElement('input');
+	if ('placeholder' in input) {
 		return {}; // Has native placeholder support
 	}
 	return {
 		require: 'ngModel',
-		link: function (scope, el, attrs, ngModel) {
+		link: function(scope, el, attrs, ngModel) {
 			if (attrs.type === 'password') {
 				return;
 			}
@@ -32,12 +32,12 @@ angular.module('html5').directive('placeholder', function ($timeout) {
 				}
 				return value;
 			});
-			$timeout(function(){
-				el.val(attrs.placeholder).focus(function(){
+			$timeout(function() {
+				el.val(attrs.placeholder).focus(function() {
 					if (el.val() === attrs.placeholder) {
 						el.val('');
 					}
-				}).blur(function(){
+				}).blur(function() {
 					if (el.val() === '') {
 						el.val(attrs.placeholder);
 					}
@@ -87,13 +87,15 @@ angular.module('html5').directive('video', function($parse, $log) {
 			h5Poster: '@', // Use h5-poster
 			h5Play: '='
 		},
-		link: function ($scope, el, attrs) {
+		link: function($scope, el, attrs) {
 			// Check if the installed flash version is compatible with video.js (requires optional dependancy SWFObject)
-			if (typeof swfobject !== 'undefined') {
-				var version = swfobject.getFlashPlayerVersion();
-				if (version.major < 11) {
-					el.after('<div class="error-message">Sorry, no compatible source and playback technology were found for this video.<br />Try using another browser like <a href="http://bit.ly/ccMUEC">Chrome</a> or download the latest <a href="http://adobe.ly/mwfN1">Adobe Flash Player</a>.</div>');
-					return;
+			if (!document.createElement('video').canPlayType) { // No HTML5 video support?
+				if (angular.isDefined(swfobject)) {
+					var version = swfobject.getFlashPlayerVersion();
+					if (version.major < 9) {
+						el.after('<div class="error-message">Sorry, no compatible source and playback technology were found for this video.<br />Try using another browser like <a href="http://bit.ly/ccMUEC">Chrome</a> or download the latest <a href="http://adobe.ly/mwfN1">Adobe Flash Player</a>.</div>');
+						return;
+					}
 				}
 			}
 			// Add video-js classes
@@ -109,19 +111,19 @@ angular.module('html5').directive('video', function($parse, $log) {
 			/**
 			 * Only call $scope.$apply() when a digest is NOT in progress.
 			 */
-			var safeApply = function () {
+			var safeApply = function() {
 				if (!$scope.$root.$$phase) {
 					$scope.$apply();
 				}
 			};
-			$scope.$watch('h5Poster', function (url) {
+			$scope.$watch('h5Poster', function(url) {
 				if (!url) {
 					return;
 				}
 				attrs.$set('poster', url);
 			});
 			var player = false;
-			videojs(el[0], options, function () {
+			videojs(el[0], options, function() {
 				player = this;
 				if ($scope.$$destroyed) { // video element is no longer needed?
 					player = false;
@@ -129,18 +131,18 @@ angular.module('html5').directive('video', function($parse, $log) {
 					return;
 				}
 				// Update the placeholder image (poster)
-				attrs.$observe('poster', function (url) {
+				attrs.$observe('poster', function(url) {
 					if (url) {
 						el.children('.vjs-poster img').attr('src', '');
 						player.poster(url);
 					}
 				});
 				// Bind events to "on-*" attributes
-				angular.forEach(events, function (event) {
+				angular.forEach(events, function(event) {
 					var method = attrs.$normalize('on-' + event);
 					if (attrs[method]) {
 						var fn = $parse(attrs[method]);
-						player.on(event, function (e) {
+						player.on(event, function(e) {
 							fn($scope.$parent, {$event: e});
 							safeApply();
 						});
@@ -148,18 +150,18 @@ angular.module('html5').directive('video', function($parse, $log) {
 				});
 				// Update the value bound to h5Play (Write binding).
 				if (attrs.h5Play) {
-					player.on('play', function () {
+					player.on('play', function() {
 						$scope.h5Play = true;
 						safeApply();
 					});
-					player.on('pause', function () {
+					player.on('pause', function() {
 						$scope.h5Play = false;
 						safeApply();
 					});
 				}
 				// Update the src
-				angular.forEach(['src', 'ngSrc'], function (expression) {
-					$scope.$watch(expression, function (url) {
+				angular.forEach(['src', 'ngSrc'], function(expression) {
+					$scope.$watch(expression, function(url) {
 						if (angular.isDefined(url)) {
 							player.src(url);
 							if ($scope.h5Play) {
@@ -169,7 +171,7 @@ angular.module('html5').directive('video', function($parse, $log) {
 					});
 				});
 				// Start/Stop the video with the h5-play value (Read binding)
-				$scope.$watch('h5Play', function (value) {
+				$scope.$watch('h5Play', function(value) {
 					var shouldPlay = !!value;
 					if (player.paused() == shouldPlay) {
 						if (shouldPlay) {
@@ -185,7 +187,7 @@ angular.module('html5').directive('video', function($parse, $log) {
 			});
 
 			// Clean up player
-			$scope.$on('$destroy', function () {
+			$scope.$on('$destroy', function() {
 				if (player) {
 					player.dispose();
 				}
